@@ -17,7 +17,8 @@ const NodeGit = require('nodegit');
 //   }
 // });
 
-const collectingInfo = [];
+const collectingSourceInfo = [];
+const collectingLocalInfo = [];
 
 module.exports = yeoman.Base.extend({
   constructor: function() {
@@ -31,15 +32,10 @@ module.exports = yeoman.Base.extend({
       };
     },
     loadRepo() {
-      //     const done = this.async();
-      //     NodeGit.Repository.open(path.resolve('.')).then((repo) => {
-      //       this.repo = repo;
-      //       console.log('found repo');
-      //       done();
-      //     }, () => {
-      //       console.log('repo not found');
-      //       done();
-      //     });
+      collectingLocalInfo.push(NodeGit.Repository.open(path.resolve('.')).then((repo) => {
+        this.repository = repo;
+      }, () => {
+      }));
     }
   },
   prompting: {
@@ -111,7 +107,7 @@ module.exports = yeoman.Base.extend({
         case 'none':
           this.props.source.delivery.main = 'index';
 
-          const done = this.sync();
+          const done = this.async();
           this.prompt([
             {
               type: 'input',
@@ -132,7 +128,7 @@ module.exports = yeoman.Base.extend({
           });
           break;
         case 'bower':
-          collectingInfo.push(new Promise((resolve, reject) => {
+          collectingSourceInfo.push(new Promise((resolve, reject) => {
             const child = this.spawnCommand('bower', ['info', delivery.name, '--json'], { stdio: [0, 'pipe'] });
             child.on('close', (code) => {
               if (code !== 0) {
@@ -151,7 +147,7 @@ module.exports = yeoman.Base.extend({
             });
             child.stdout.on('data', (data) => {
               const result = JSON.parse(data.toString());
-              this.props.source.delivery.main = path.parse(result.latest.main).name || 'index';
+              this.props.source.delivery.main = result.latest.main? path.parse(result.latest.main).name : 'index';
               this.props.source.version = result.latest.version;
               this.props.source.homepage = result.latest.homepage;
               resolve();
@@ -159,7 +155,7 @@ module.exports = yeoman.Base.extend({
           }));
           break;
         case 'npm':
-          collectingInfo.push(new Promise((resolve, reject) => {
+          collectingSourceInfo.push(new Promise((resolve, reject) => {
             const child = this.spawnCommand('npm', ['info', delivery.name, '--json'], { stdio: [0, 'pipe'] });
             child.on('close', (code) => {
               if (code !== 0) {
@@ -227,7 +223,18 @@ module.exports = yeoman.Base.extend({
       this.log('');
       this.log(`Good, now about the ${chalk.yellow('typings')} itself...`);
     },
-
+    waitForLocalInfo() {
+      const done = this.async();
+      Promise.all(collectingLocalInfo).then(() => {
+        done();
+      }, (err) => {
+        this.log(err);
+        process.exit(1);
+      });
+    },
+    askTypingsHost() {
+      // console.log(this.repository);
+    },
     askSource() {
       const hostQuestions = [
         {
@@ -253,9 +260,9 @@ module.exports = yeoman.Base.extend({
     },
   },
   install: {
-    waitForCollectingInfo() {
+    waitForSourceInfo() {
       const done = this.async();
-      Promise.all(collectingInfo).then(() => {
+      Promise.all(collectingSourceInfo).then(() => {
         done();
       }, (err) => {
         this.log(err);
@@ -263,6 +270,9 @@ module.exports = yeoman.Base.extend({
       });
     },
     printProps() {
+      this.log('');
+      this.log('');
+      this.log('');
       if (this.options.dryrun) {
         this.log('dryrun testing');
       }
