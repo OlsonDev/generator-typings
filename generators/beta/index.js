@@ -147,7 +147,7 @@ module.exports = yeoman.Base.extend({
             });
             child.stdout.on('data', (data) => {
               const result = JSON.parse(data.toString());
-              this.props.source.delivery.main = 'index';
+              this.props.source.delivery.main = path.parse(result.latest.main).name || 'index';
               this.props.source.version = result.latest.version;
               this.props.source.homepage = result.latest.homepage;
               resolve();
