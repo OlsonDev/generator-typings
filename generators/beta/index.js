@@ -24,6 +24,7 @@ module.exports = yeoman.Base.extend({
   constructor: function() {
     yeoman.Base.apply(this, arguments);
     this.option('dryrun');
+    this.option('skipPrompt');
   },
   initializing: {
     initProps() {
@@ -32,9 +33,19 @@ module.exports = yeoman.Base.extend({
       };
     },
     loadRepo() {
+      const repository = { init: true };
       collectingLocalInfo.push(NodeGit.Repository.open(path.resolve('.')).then((repo) => {
-        this.repository = repo;
+        const done = this.async();
+        Promise.all([repo.getRemote('origin').then((remote) => {
+          repository.url = remote.url();
+        })]).then(() => {
+          this.props.repository = repository;
+          this.repository = repo;
+          done();
+        });
       }, () => {
+        repository.init = false;
+        this.props.repository = repository;
       }));
     }
   },
@@ -50,6 +61,8 @@ module.exports = yeoman.Base.extend({
       this.log(`To begin, I need to know a little bit about the ${chalk.green('source')} you are typings for.`);
     },
     askDelivery() {
+      if (this.options.skipPrompt) return;
+
       const questions = [
         {
           type: 'list',
@@ -97,6 +110,8 @@ module.exports = yeoman.Base.extend({
       });
     },
     getInfoFromDelivery() {
+      if (this.options.skipPrompt) return;
+
       const delivery = this.props.source.delivery;
       if (delivery.type !== 'none') {
         this.log(`gathering info from ${chalk.cyan(delivery.type)}...`);
@@ -147,7 +162,7 @@ module.exports = yeoman.Base.extend({
             });
             child.stdout.on('data', (data) => {
               const result = JSON.parse(data.toString());
-              this.props.source.delivery.main = result.latest.main? path.parse(result.latest.main).name : 'index';
+              this.props.source.delivery.main = result.latest.main ? path.parse(result.latest.main).name : 'index';
               this.props.source.version = result.latest.version;
               this.props.source.homepage = result.latest.homepage;
               resolve();
@@ -177,6 +192,8 @@ module.exports = yeoman.Base.extend({
       }
     },
     askUsage() {
+      if (this.options.skipPrompt) return;
+
       const done = this.async();
       this.prompt(
         {
@@ -198,6 +215,8 @@ module.exports = yeoman.Base.extend({
         });
     },
     askPlatform() {
+      if (this.options.skipPrompt) return;
+
       const done = this.async();
       this.prompt(
         {
@@ -233,7 +252,17 @@ module.exports = yeoman.Base.extend({
       });
     },
     askTypingsHost() {
-      // console.log(this.repository);
+      if (this.repository) {
+        const done = this.async();
+        console.log('path', this.repository.path());
+        console.log('isEmpty()', this.repository.isEmpty() == true);
+        Promise.all([this.repository.getRemote('origin').then((remote) => {
+          console.log('getRemote()', remote.url());
+        })]).then(() => done());
+      }
+      else {
+        console.log('no repository');
+      }
     },
     askSource() {
       const hostQuestions = [
