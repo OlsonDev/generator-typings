@@ -12,10 +12,8 @@ branches:
 node_js:
   - "stable"
 
-before_script:
+before_install:
   - npm install -g bower
-  - bower install
-  - echo 'after bower'
 
 addons:
   apt:
