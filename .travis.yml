@@ -7,15 +7,15 @@ notifications:
     on_success: never
     on_failure: change
 
-before_script:
-  - npm install -g bower
-
 branches:
   only:
     - master
 
 node_js:
   - "stable"
+
+before_script:
+  - npm install -g bower
 
 addons:
   apt:
