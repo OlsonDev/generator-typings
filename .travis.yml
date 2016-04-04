@@ -5,6 +5,9 @@ notifications:
     on_success: never
     on_failure: change
 
+before_script:
+  - npm install -g bower
+
 branches:
   only:
     - master
